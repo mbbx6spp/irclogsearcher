@@ -86,7 +86,7 @@ else
   }
 
   set -eu
-  #download_irclogs
+  download_irclogs
   convert_irclog_to_json
   setup_elasticsearch_index
   import_json_to_elasticsearch
