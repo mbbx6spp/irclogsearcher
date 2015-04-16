@@ -59,5 +59,11 @@ It will output JSON like the following:
 
 Now you can pipe that into Elasticsearch so you can search the IRC logs. :)
 
+[source]
+----
+$ ./scripts/import
+----
 
+=== Known Issues
 
+I still need to fix the import on some of the files...stay tuned.
