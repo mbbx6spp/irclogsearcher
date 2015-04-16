@@ -1,0 +1,63 @@
+== Simple IRC log ES importer
+
+Yes, using Awk. How awkward.
+
+After downloading all the plain text IRC logs of format like this:
+
+[source]
+----
+[14:23] NixOS joined #nixos.
+[14:26] <niksnut> heh: I wrote some scripts to build a NixOS configuration (or any other derivation) in a chroot last night
+[14:26] <niksnut> I needed it to get some data for a paper
+[14:26] <niksnut> namely how long it takes to build a configuration in an empty nix store
+[14:31] <civodul> hmm, hello NixOS!
+[14:32] <ikwildrpepper> NixOS is a logger
+[14:32] <civodul> does it make logs available on-line?
+[14:32] <ikwildrpepper> not yet
+[14:32] <civodul> would be nice
+[14:32] <ikwildrpepper> but will look into that
+[14:32] <civodul> cool
+[14:33] <niksnut> ikwildrpepper: heh, I should have recognized the IP address :-)
+[14:33] <niksnut> can you rename it to NixBot or something?
+[14:33] <civodul> +1
+
+...
+
+[00:00] --- Tue Sep  8 2009
+----
+
+You can run the following:
+
+[source]
+----
+$ awk -f scripts/irclog2json.awk -v date=${DATE} "data/log.${DATE}"
+----
+
+It will output JSON like the following:
+
+[source]
+----
+
+{ "date": "20141231", "log": [
+    { "nick": "devhell", "time": "00:00", "message": "00:00 devhell JagaJaga: Who's your audience?" },
+    { "nick": "devhell", "time": "00:02", "message": "00:02 devhell kmicu: yeah, but what level of academics" },
+    { "nick": "JagaJaga", "time": "00:02", "message": "00:02 JagaJaga devhell: kmicu: I'm studying with guys who won this lots of times. https://en.wikipedia.org/wiki/ACM_International_Collegiate_Programming_Contest So my audience is computer science students (from the 1st to the last grade)" },
+    { "nick": "devhell", "time": "00:03", "message": "00:03 devhell mkay, good luck ;-)" },
+    { "nick": "JagaJaga", "time": "00:03", "message": "00:03 JagaJaga kmicu: oxij is going to be there too (if you know him) :D" },
+    { "nick": "JagaJaga", "time": "00:04", "message": "00:04 JagaJaga kmicu: he is type theory and nixos addict. So he was the one who suggested me to use this system" },
+    { "nick": "JagaJaga", "time": "00:05", "message": "00:05 JagaJaga kmicu: and we have lots of guys who like category theory, type theory, functional languages etc" },
+    { "nick": "devhell", "time": "00:05", "message": "00:05 devhell looks like russia and china are owning that contest" },
+    { "nick": "JagaJaga", "time": "00:06", "message": "00:06 JagaJaga devhell: we have a guy, who won `topcoder` this year" },
+    { "nick": "devhell", "time": "00:11", "message": "00:11 devhell JagaJaga: It wouldn't by any chance be Petr Mitrichev?" },
+    { "nick": "Fuuzetsu", "time": "00:20", "message": "00:20 Fuuzetsu JagaJaga: yeah, I wouldn't say it's ready for general use yet" },
+    { "nick": "Fuuzetsu", "time": "00:20", "message": "00:20 Fuuzetsu we'll get there" },
+    { "nick": "Fuuzetsu", "time": "00:20", "message": "00:20 Fuuzetsu and once we do it will be awesome, just not yet ;)" },
+    ...
+    { "nick": "_", "time": "23:59", "message": "End of day!"}
+  ], "message_count": 437}
+----
+
+Now you can pipe that into Elasticsearch so you can search the IRC logs. :)
+
+
+

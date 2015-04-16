@@ -1,0 +1,21 @@
+#!/usr/bin/env nixbang
+# command = bash
+# packages = bash curl
+
+if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
+  >& echo "ERROR: Sourced an executable script, ${BASH_SOURCE[0]}."
+else
+
+  declare -r script_dir="$(dirname "${0}")"
+  declare -r es_url="${ES_URL:-http://localhost:9200}"
+  declare -r channel="${CHANNEL:-nixos}"
+  declare -r log_dir="$(readlink -f "${script_dir}/../log")"
+  declare -r data_dir="$(readlink -f "${script_dir}/../data")"
+  declare -r raw_data_dir="${data_dir}/raw"
+  declare -r json_data_dir="${data_dir}/json"
+
+  set -u
+  curl -X DELETE "${es_url}/${channel}" || true
+  rm -rf "${log_dir}" "${json_data_dir}" || true
+  rm "${raw_data_dir}/*.txt" || true
+fi

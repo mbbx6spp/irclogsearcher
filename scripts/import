@@ -1,0 +1,94 @@
+#!/usr/bin/env nixbang
+# command = bash
+# packages = bash curl parallel gawk jq
+
+if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
+  >& echo "ERROR: Sourced an executable script, ${BASH_SOURCE[0]}."
+else
+
+  declare -r script_dir="$(dirname "${0}")"
+  declare -r es_url="${ES_URL:-http://localhost:9200}"
+  declare -r channel="${CHANNEL:-nixos}"
+  declare -r data_dir="$(readlink -f "${script_dir}/../data")"
+  declare -r log_dir="$(readlink -f "${script_dir}/../log")"
+  declare -r urlpath="${data_dir}/${channel}.urls"
+  declare -r raw_data_dir="${data_dir}/raw"
+  declare -r json_data_dir="${data_dir}/json"
+
+  mkdir -p "${raw_data_dir}" "${json_data_dir}" "${log_dir}"
+
+  if [ ! -f "${urlpath}" ]; then
+    >&2 echo "ERROR: No URL file available at: ${urlpath}"
+    exit 1
+  fi
+
+  declare -ra urls=($(cat "${urlpath}"))
+
+  function download_irclogs() {
+    parallel --progress \
+      wget --quiet \
+        --directory-prefix="${raw_data_dir}" ::: ${urls[*]}
+  }
+
+  # Only not using parallel here for debugging purposes
+  function convert_irclog_to_json() {
+    local -ra irclogs=($(ls "${raw_data_dir}"))
+    local logdate=""
+
+    for log in "${irclogs[@]}"; do
+      # Yes, using non-posix [[ ]] here for regex matching extension!
+      if [[ "${log}" =~ log\. ]]; then
+        logdate="${log//log\./}"
+        iconv -f LATIN1 -t UTF8 "${raw_data_dir}/${log}" \
+          > "${raw_data_dir}/${log}.txt"
+        awk -f scripts/irclog2json.awk \
+          -v "date=${logdate}" "${raw_data_dir}/${log}.txt" \
+          > "${json_data_dir}/${logdate}"
+      fi
+    done
+  }
+
+  function setup_elasticsearch_index() {
+    curl -XPUT "${es_url}/${channel}"
+    curl -XPUT "${es_url}/${channel}/_mapping/dailylog" \
+      -d "@schema/dailylog.mapping.json"
+  }
+
+  function import_json_to_elasticsearch() {
+    local -ra jsonlogs=($(ls "${json_data_dir}"))
+    local -r error_log="${log_dir}/es.errors"
+    local logdate=""
+    local reply=""
+
+    for log in "${jsonlogs[@]}"; do
+      logdate="${log//data\/json\/log\./}"
+      echo -ne "Importing ${logdate}..."
+
+      set +e
+      reply="$(curl --silent -i -XPUT -f \
+        "${es_url}/${channel}/dailylog/${logdate}" \
+        -d "@${json_data_dir}/${log}" \
+        2>&1>> "${error_log}")"
+
+      if [ "$?" -eq 0 ]; then
+        echo "[OK]"
+      else
+        echo "[FAILED]"
+      fi
+      set -e
+
+      echo "${logdate} - ${reply}" >> "${error_log}"
+    done
+  }
+
+  function display_index_count() {
+    curl --silent --show-error "${es_url}/${channel}/_count" | jq '.'
+  }
+
+  set -eu
+  #download_irclogs
+  convert_irclog_to_json
+  setup_elasticsearch_index
+  import_json_to_elasticsearch
+  display_index_count
+fi
